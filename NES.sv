@@ -25,6 +25,8 @@ module emu
 	//Video aspect ratio for HDMI. Most retro systems have ratio 4:3.
 	output  [7:0] VIDEO_ARX,
 	output  [7:0] VIDEO_ARY,
+	output  [1:0] DDD,
+	output        SHRINK,
 
 	output  [7:0] VGA_R,
 	output  [7:0] VGA_G,
@@ -118,7 +120,17 @@ assign VIDEO_ARY = status[8] ? 8'd9  : (hide_overscan ? 8'd49 : 8'd105);
 
 assign CLK_VIDEO = clk;
 
-assign VGA_F1 = 0;
+assign DDD = {status[11] ,status[11] | status[10]};
+
+reg [1:0] statmem;
+
+always_ff @(posedge clk) begin
+	statmem <= status[11:10];
+	if (statmem==2'b10 && status[11:10]==2'b00) begin
+		SHRINK <= ~SHRINK;
+	end
+end
+
 //assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
@@ -130,7 +142,7 @@ assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 // 0         1         2         3 
 // 01234567890123456789012345678901
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXX XXXXXXXXXXXXXXXXX XX
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -158,6 +170,7 @@ parameter CONF_STR2 = {
 	"O13,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"O4,Hide Overscan,Off,On;",
 	"ORS,Mask Edges,Off,Left,Both,Auto;",
+	"OAB,3D side by side,No,Autodetect,Always;",
 	"OP,Extra Sprites,Off,On;",
 	"OCF,Palette,Smooth,Unsat.,FCEUX,NES Classic,Composite,PC-10,PVM,Wavebeam,Real,Sony CXA,YUV,Greyscale,Rockman9,Nintendulator;",
 	"-;",
@@ -165,7 +178,7 @@ parameter CONF_STR2 = {
 	"OIJ,Peripheral,Powerpad,Zapper(Mouse),Zapper(Joy1),Zapper(Joy2);",
 	"OL,Zapper Trigger,Mouse,Joystick;",
 	"OM,Crosshairs,On,Off;",
-	"OA,Multitap,Disabled,Enabled;",
+	"OT,Multitap,Disabled,Enabled;",
 	"OQ,Serial Mode,None,SNAC;",
 `ifdef DEBUG_AUDIO
 	"-;",
@@ -383,6 +396,7 @@ wire  [8:0] cycle;
 wire  [8:0] scanline;
 wire [15:0] sample;
 wire  [5:0] color;
+wire        lr3d;
 wire        joypad_strobe;
 wire  [1:0] joypad_clock;
 reg  [23:0] joypad_bits, joypad_bits2;
@@ -484,8 +498,8 @@ always @(posedge clk) begin
 	end else begin
 		if (joypad_strobe) begin
 			joypad_bits  <= piano ? {15'h0000, uart_data[8:0]}
-			               : {status[10] ? {8'h08, nes_joy_C} : 16'hFFFF, joy_swap ? nes_joy_B : nes_joy_A};
-			joypad_bits2 <= {status[10] ? {8'h04, nes_joy_D} : 16'hFFFF, joy_swap ? nes_joy_A : nes_joy_B};
+			               : {status[29] ? {8'h08, nes_joy_C} : 16'hFFFF, joy_swap ? nes_joy_B : nes_joy_A};
+			joypad_bits2 <= {status[29] ? {8'h04, nes_joy_D} : 16'hFFFF, joy_swap ? nes_joy_A : nes_joy_B};
 			powerpad_d4 <= {4'b0000, powerpad[7], powerpad[11], powerpad[2], powerpad[3]};
 			powerpad_d3 <= {powerpad[6], powerpad[10], powerpad[9], powerpad[5], powerpad[8], powerpad[4], powerpad[0], powerpad[1]};
 		end
@@ -604,6 +618,7 @@ NES nes (
 	// Video
 	.ex_sprites      (status[25]),
 	.color           (color),
+	.lr3d            (lr3d),
 	.emphasis        (emphasis),
 	.cycle           (cycle),
 	.scanline        (scanline),
@@ -829,6 +844,7 @@ end
 wire [2:0] scale = status[3:1];
 wire [2:0] sl = scale ? scale - 1'd1 : 3'd0;
 assign VGA_SL = sl[1:0];
+assign VGA_F1 = lr3d;
 
 wire [1:0] reticle;
 wire hold_reset;

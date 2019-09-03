@@ -77,6 +77,7 @@ module NES(
 	input  [31:0] mapper_flags,
 	output [15:0] sample,         // sample generated from APU
 	output  [5:0] color,          // pixel generated from PPU
+	output        lr3d,           // 3D glasses
 	output        joypad_strobe,  // Set to 1 to strobe joypads. Then set to zero to keep the value.
 	output  [1:0] joypad_clock,   // Set to 1 for each joypad to clock it.
 	input   [3:0] joypad_data,    // Data for each joypad + 1 powerpad.
@@ -373,6 +374,15 @@ end
 
 assign joypad_strobe = joy_strobe;
 assign joypad_clock = {joypad2_cs && mr_int, joypad1_cs && mr_int};
+
+assign lr3d = lr3dr;
+reg lr3dr;
+
+always @(posedge clk) begin
+   if (joypad1_cs && mw_int)
+	  lr3dr<=cpu_dout[1];
+end
+
 
 
 /**********************************************************/
