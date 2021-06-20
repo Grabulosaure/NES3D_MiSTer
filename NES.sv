@@ -26,7 +26,8 @@ module emu
 	//if VIDEO_ARX[12] or VIDEO_ARY[12] is set then [11:0] contains scaled size instead of aspect ratio.
 	output [12:0] VIDEO_ARX,
 	output [12:0] VIDEO_ARY,
-
+	output  [1:0] DDD,
+	output        SHRINK,
 	output  [7:0] VGA_R,
 	output  [7:0] VGA_G,
 	output  [7:0] VGA_B,
@@ -170,7 +171,9 @@ assign LED_POWER = 0;
 assign BUTTONS [1] = 0;
 assign VGA_SCALER = 0;
 
-assign VGA_F1 = 0;
+assign DDD = {status[48],status[48] | status[47]};
+assign SHRINK = status[49];
+
 //assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
@@ -200,7 +203,7 @@ video_freak video_freak
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXX XX XXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXX
+// XXXXXXXX XX XXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 parameter CONF_STR = {
@@ -212,6 +215,8 @@ parameter CONF_STR = {
 	"OG,Disk Swap,Auto,FDS button;",
 	"OCF,Palette,Smooth,Unsat.,FCEUX,NES Classic,Composite,PC-10,PVM,Wavebeam,Real,Sony CXA,YUV,Greyscale,Rockman9,Ninten.,Custom;",
 	"H3FC3,PAL,Custom Palette;",
+	"oFG,3D side by side,No,Autodetect,Always;",     
+	"oH,3D shrink,No,Yes;",
 	"-;",
 	"C,Cheats;",
 	"H2OK,Cheats Enabled,On,Off;",
@@ -524,6 +529,7 @@ wire  [8:0] cycle;
 wire  [8:0] scanline;
 wire [15:0] sample;
 wire  [5:0] color;
+wire        lr3d;   
 wire  [2:0] joypad_out;
 wire  [1:0] joypad_clock;
 reg  [23:0] joypad_bits, joypad_bits2;
@@ -821,6 +827,7 @@ NES nes (
 	// Video
 	.ex_sprites      (status[25]),
 	.color           (color),
+	.lr3d            (lr3d),
 	.emphasis        (emphasis),
 	.cycle           (cycle),
 	.scanline        (scanline),
@@ -1095,7 +1102,8 @@ end
 wire [2:0] scale = status[3:1];
 wire [2:0] sl = scale ? scale - 1'd1 : 3'd0;
 assign VGA_SL = sl[1:0];
-
+assign VGA_F1 = lr3d;
+   
 wire [1:0] reticle;
 wire hold_reset;
 wire ce_pix;
