@@ -532,7 +532,7 @@ reg lr3dr;
 
 always @(posedge clk) begin
 	if (joypad1_cs && mw_int)
-		lr3dr<=cpu_dout[1];
+		lr3dr<=~cpu_dout[1];
 end
 
 /**********************************************************/
